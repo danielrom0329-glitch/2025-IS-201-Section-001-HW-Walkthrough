@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Snake: NYC Concrete Jungle</title>
+<style>
+    body {
+        margin: 0;
+        font-family: 'Segoe UI', Arial, sans-serif;
+        background: url('https://images.unsplash.com/photo-1508873696983-2dfd5898f5e7?auto=format&fit=crop&w=1400&q=60') no-repeat center center fixed;
+        background-size: cover;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        height: 100vh;
+        color: #fff;
+        text-shadow: 1px 1px 3px #000;
+    }
+
+    h1 {
+        margin-top: 20px;
+        font-size: 2rem;
+        text-align: center;
+    }
+
+    #controls {
+        margin: 10px;
+        text-align: center;
+    }
+
+    #gameCanvas {
+        background-color: rgba(40, 40, 40, 0.7);
+        border: 3px solid #f1c40f;
+        margin-top: 20px;
+    }
+
+    label {
+        margin-right: 10px;
+    }
+
+    input {
+        margin-right: 20px;
+    }
+
+    #scoreDisplay {
+        margin-top: 10px;
+        font-size: 1.2rem;
+    }
+</style>
+</head>
+<body>
+
+<h1>Snake: NYC Concrete Jungle</h1>
+
+<div id="controls">
+    <label for="speed">Speed:</label>
+    <input type="number" id="speed" value="5" min="1" max="20">
+    
+    <label for="scoreMultiplier">Score Multiplier:</label>
+    <input type="number" id="scoreMultiplier" value="1" min="1" max="10">
+    
+    <button id="startBtn">Start Game</button>
+</div>
+
+<canvas id="gameCanvas" width="400" height="400"></canvas>
+<div id="scoreDisplay">Score: 0</div>
+
+<!-- Background NYC street sound -->
+<audio id="nycSound" loop>
+    <source src="https://www.soundjay.com/ambience/nyc-street-ambient-01.mp3" type="audio/mpeg">
+</audio>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+const gridSize = 20;
+let speedInput = document.getElementById('speed');
+let multiplierInput = document.getElementById('scoreMultiplier');
+let startBtn = document.getElementById('startBtn');
+let scoreDisplay = document.getElementById('scoreDisplay');
+let nycSound = document.getElementById('nycSound');
+
+let snake = [];
+let direction = {x: 1, y: 0}; // starts moving right
+let food = {x: 15, y: 15};
+let score = 0;
+let gameInterval;
+let gameSpeed = parseInt(speedInput.value);
+
+// Food images
+const foodImages = [
+    'https://img.icons8.com/color/48/000000/taxi.png', 
+    'https://img.icons8.com/color/48/000000/hot-dog.png', 
+    'https://img.icons8.com/color/48/000000/coffee-to-go.png'
+];
+let foodImage = new Image();
+foodImage.src = foodImages[Math.floor(Math.random()*foodImages.length)];
+
+function resetGame() {
+    snake = [{x: 10, y: 10}];
+    direction = {x: 1, y: 0}; // initial direction
+    food = {x: Math.floor(Math.random()*canvas.width/gridSize), y: Math.floor(Math.random()*canvas.height/gridSize)};
+    score = 0;
+    scoreDisplay.textContent = `Score: ${score}`;
+    foodImage.src = foodImages[Math.floor(Math.random()*foodImages.length)];
+}
+
+function drawCell(x, y, color, isHead=false) {
+    if(isHead) {
+        ctx.fillStyle = '#e74c3c';
+        ctx.fillRect(x*gridSize, y*gridSize, gridSize-1, gridSize-1);
+    } else {
+        const skyscraperColors = ['#2c3e50','#34495e','#7f8c8d','#95a5a6'];
+        ctx.fillStyle = skyscraperColors[Math.floor(Math.random()*skyscraperColors.length)];
+        ctx.fillRect(x*gridSize, y*gridSize, gridSize-1, gridSize-1);
+    }
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    snake.forEach((segment, index) => {
+        drawCell(segment.x, segment.y, null, index===0);
+    });
+    ctx.drawImage(foodImage, food.x*gridSize, food.y*gridSize, gridSize-1, gridSize-1);
+}
+
+function moveSnake() {
+    let newHead = {x: snake[0].x + direction.x, y: snake[0].y + direction.y};
+
+    // Wrap around edges
+    if(newHead.x < 0) newHead.x = canvas.width/gridSize -1;
+    if(newHead.x >= canvas.width/gridSize) newHead.x = 0;
+    if(newHead.y < 0) newHead.y = canvas.height/gridSize -1;
+    if(newHead.y >= canvas.height/gridSize) newHead.y = 0;
+
+    // Check self collision (exclude head)
+    if(snake.slice(1).some(segment => segment.x === newHead.x && segment.y === newHead.y)) {
+        clearInterval(gameInterval);
+        nycSound.pause();
+        alert(`Game Over! Final Score: ${score}`);
+        resetGame();
+        return;
+    }
+
+    snake.unshift(newHead);
+
+    // Check food collision
+    if(newHead.x === food.x && newHead.y === food.y) {
+        score += 1 * parseInt(multiplierInput.value);
+        scoreDisplay.textContent = `Score: ${score}`;
+        food = {x: Math.floor(Math.random()*canvas.width/gridSize), y: Math.floor(Math.random()*canvas.height/gridSize)};
+        foodImage.src = foodImages[Math.floor(Math.random()*foodImages.length)];
+    } else {
+        snake.pop();
+    }
+}
+
+function gameLoop() {
+    moveSnake();
+    draw();
+}
+
+document.addEventListener('keydown', e => {
+    switch(e.key) {
+        case 'ArrowUp': if(direction.y===0){direction = {x:0,y:-1}}; break;
+        case 'ArrowDown': if(direction.y===0){direction = {x:0,y:1}}; break;
+        case 'ArrowLeft': if(direction.x===0){direction = {x:-1,y:0}}; break;
+        case 'ArrowRight': if(direction.x===0){direction = {x:1,y:0}}; break;
+    }
+});
+
+startBtn.addEventListener('click', () => {
+    clearInterval(gameInterval);
+    gameSpeed = parseInt(speedInput.value);
+    resetGame();
+    nycSound.play();
+    gameInterval = setInterval(gameLoop, 200 / gameSpeed);
+});
+</script>
+
+</body>
+</html>
+    
